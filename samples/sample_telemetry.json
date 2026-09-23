@@ -1,0 +1,8 @@
+{
+  "device_id": "ESP8266_01",
+  "temperature": 30.6,
+  "humidity": 49.0,
+  "gas_level": 852,
+  "distance": 57.0,
+  "status": "NORMAL"
+}

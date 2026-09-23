@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Local configuration / secrets
+.env
+.env.*
+!.env.example
+config.local.h
+secrets.h
+
+# Runtime data
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build / generated artifacts
+build/
+dist/
+*.tmp
+*.bak
+
+# Local test output
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Arduino generated / local files
+*.hex
+*.elf
+*.bin

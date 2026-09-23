@@ -1,0 +1,4 @@
+# Public documentation placeholder only.
+# The live MQTT payload is Base64([16-byte IV][AES-128-CBC ciphertext]).
+# Do not place a production payload or secret key in this file.
+<BASE64_IV_PLUS_CIPHERTEXT>
