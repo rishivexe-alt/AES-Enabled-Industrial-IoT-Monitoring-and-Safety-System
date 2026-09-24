@@ -1,154 +1,54 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <DHT.h>
-
 #include <Crypto.h>
 #include <AES.h>
-
-// ============================================================
-// SECURE IoT SENSOR NODE
-// ESP8266 + DHT11 + MQ-135 + HC-SR04 + TOUCH
-// AES-128-CBC + MQTT
-// ============================================================
-
-
-// ============================================================
-// WIFI + MQTT CONFIGURATION
-// ============================================================
-
-// IMPORTANT:
-// Do NOT commit real credentials to GitHub.
-// Replace these locally before uploading to ESP8266.
-
 const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
-
-// Change this to the laptop's current IPv4 address.
 const char* mqtt_server = "YOUR_LAPTOP_IP";
-
 const int mqtt_port = 1883;
-
 const char* mqtt_topic = "iot/sensors";
-
-
-// ============================================================
-// PIN CONFIGURATION
-// ============================================================
-
-// DHT11
 #define DHT_PIN D2
 #define DHT_TYPE DHT11
-
-// Ultrasonic
 #define TRIG_PIN D1
 #define ECHO_PIN D5
-
-// MQ-135
 #define GAS_PIN A0
-
-// Touch sensor
 #define TOUCH_PIN D6
-
-// LEDs
 #define GREEN_LED D4
 #define RED_LED D8
 #define YELLOW_LED D7
-
-// Buzzer
 #define BUZZER_PIN D0
-
-
-// ============================================================
-// SENSOR OBJECTS
-// ============================================================
-
 DHT dht(DHT_PIN, DHT_TYPE);
-
 WiFiClient espClient;
 PubSubClient client(espClient);
-
-
-// ============================================================
-// SAFETY THRESHOLDS
-// ============================================================
-
 const float TEMP_THRESHOLD = 35.0;
 const float HUM_THRESHOLD  = 80.0;
 const int   GAS_THRESHOLD  = 1000;
-
-// IMPORTANT: 6 cm
 const float DIST_THRESHOLD = 6.0;
-
-
-// ============================================================
-// TOUCH CONFIGURATION
-// ============================================================
-
 const int TOUCH_ACTIVE_STATE = HIGH;
-
-
-// ============================================================
-// AES-128 KEY
-// ============================================================
-
-// IMPORTANT:
-// Do NOT publish the real shared key.
-// Configure the same 16-byte key locally in the
-// ESP8266 firmware and Python receiver.
-
 byte aesKey[16] = {
   'Y','O','U','R',
   '_','1','2','8',
   '_','B','I','T',
   '_','K','E','Y'
 };
-
-
-// ============================================================
-// AES OBJECT
-// ============================================================
-
 AES128 aes;
-
-
-// ============================================================
-// SYSTEM STATE
-// ============================================================
-
 bool dangerDetected = false;
 bool buzzerSilenced = false;
-
-
-// ============================================================
-// NORMAL STATE
-// ============================================================
-
 void normalState()
 {
   digitalWrite(GREEN_LED, HIGH);
   digitalWrite(RED_LED, LOW);
-
-  // Yellow LED represents normal/load state
   digitalWrite(YELLOW_LED, HIGH);
-
   digitalWrite(BUZZER_PIN, LOW);
-
   buzzerSilenced = false;
 }
-
-
-// ============================================================
-// DANGER STATE
-// ============================================================
 
 void dangerState()
 {
   digitalWrite(GREEN_LED, LOW);
   digitalWrite(RED_LED, HIGH);
-
-  // Safety/load output OFF
   digitalWrite(YELLOW_LED, LOW);
-
   if (!buzzerSilenced)
   {
     digitalWrite(BUZZER_PIN, HIGH);
@@ -158,11 +58,6 @@ void dangerState()
     digitalWrite(BUZZER_PIN, LOW);
   }
 }
-
-
-// ============================================================
-// ULTRASONIC DISTANCE
-// ============================================================
 
 float readDistance()
 {
@@ -193,26 +88,9 @@ float readDistance()
 }
 
 
-// ============================================================
-// AES CBC + PKCS#7 + BASE64
-//
-// FORMAT:
-//
-// [16 BYTE IV] + [CIPHERTEXT]
-//
-// Then Base64 encoded.
-//
-// This matches the corresponding Python
-// AES-CBC receiver.
-// ============================================================
-
 String encryptPacket(String plaintext)
 {
   int len = plaintext.length();
-
-  // ----------------------------------------------------------
-  // PKCS#7 PADDING
-  // ----------------------------------------------------------
 
   int paddedLength =
     ((len / 16) + 1) * 16;
@@ -227,10 +105,6 @@ String encryptPacket(String plaintext)
   }
 
 
-  // ----------------------------------------------------------
-  // RANDOM IV
-  // ----------------------------------------------------------
-
   byte iv[16];
 
   for (int i = 0; i < 16; i++)
@@ -238,10 +112,6 @@ String encryptPacket(String plaintext)
     iv[i] = random(0, 256);
   }
 
-
-  // ----------------------------------------------------------
-  // CREATE PADDED PLAINTEXT
-  // ----------------------------------------------------------
 
   byte input[192];
 
@@ -261,9 +131,6 @@ String encryptPacket(String plaintext)
   }
 
 
-  // ----------------------------------------------------------
-  // AES-128 CBC ENCRYPTION
-  // ----------------------------------------------------------
 
   byte output[192];
 
@@ -289,9 +156,7 @@ String encryptPacket(String plaintext)
   {
     byte blockData[16];
 
-    // CBC:
-    // blockData = plaintextBlock XOR previousCiphertext
-    // First block uses IV.
+
 
     for (int i = 0; i < 16; i++)
     {
@@ -306,8 +171,6 @@ String encryptPacket(String plaintext)
       blockData
     );
 
-    // Current ciphertext becomes
-    // IV for the next block.
 
     memcpy(
       currentIV,
@@ -317,20 +180,15 @@ String encryptPacket(String plaintext)
   }
 
 
-  // ----------------------------------------------------------
-  // IV + CIPHERTEXT
-  // ----------------------------------------------------------
 
   byte combined[208];
 
-  // First 16 bytes = IV
   memcpy(
     combined,
     iv,
     16
   );
 
-  // Remaining bytes = ciphertext
   memcpy(
     combined + 16,
     output,
@@ -338,9 +196,6 @@ String encryptPacket(String plaintext)
   );
 
 
-  // ----------------------------------------------------------
-  // BASE64 ENCODING
-  // ----------------------------------------------------------
 
   const char base64Table[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -423,9 +278,6 @@ String encryptPacket(String plaintext)
 }
 
 
-// ============================================================
-// WIFI SETUP
-// ============================================================
 
 void setupWiFi()
 {
@@ -489,9 +341,6 @@ void setupWiFi()
 }
 
 
-// ============================================================
-// MQTT RECONNECT
-// ============================================================
 
 void reconnectMQTT()
 {
@@ -575,20 +424,12 @@ void reconnectMQTT()
 }
 
 
-// ============================================================
-// SETUP
-// ============================================================
-
 void setup()
 {
   Serial.begin(115200);
 
   delay(1000);
 
-
-  // ----------------------------------------------------------
-  // PIN INITIALIZATION
-  // ----------------------------------------------------------
 
   pinMode(
     TRIG_PIN,
@@ -625,11 +466,6 @@ void setup()
     OUTPUT
   );
 
-
-  // ----------------------------------------------------------
-  // INITIAL OUTPUT STATE
-  // ----------------------------------------------------------
-
   digitalWrite(
     TRIG_PIN,
     LOW
@@ -656,26 +492,15 @@ void setup()
   );
 
 
-  // ----------------------------------------------------------
-  // DHT11
-  // ----------------------------------------------------------
 
   dht.begin();
 
-
-  // ----------------------------------------------------------
-  // RANDOM SEED
-  // ----------------------------------------------------------
 
   randomSeed(
     micros() ^
     analogRead(A0)
   );
 
-
-  // ----------------------------------------------------------
-  // HEADER
-  // ----------------------------------------------------------
 
   Serial.println();
 
@@ -695,10 +520,6 @@ void setup()
     "===================================="
   );
 
-
-  // ----------------------------------------------------------
-  // THRESHOLDS
-  // ----------------------------------------------------------
 
   Serial.println();
   Serial.println(
@@ -753,23 +574,11 @@ void setup()
   );
 
 
-  // ----------------------------------------------------------
-  // NORMAL INITIAL STATE
-  // ----------------------------------------------------------
 
   normalState();
 
-
-  // ----------------------------------------------------------
-  // WIFI
-  // ----------------------------------------------------------
-
   setupWiFi();
 
-
-  // ----------------------------------------------------------
-  // MQTT
-  // ----------------------------------------------------------
 
   client.setServer(
     mqtt_server,
@@ -789,15 +598,9 @@ void setup()
 }
 
 
-// ============================================================
-// MAIN LOOP
-// ============================================================
-
 void loop()
 {
-  // ----------------------------------------------------------
-  // MQTT CONNECTION
-  // ----------------------------------------------------------
+
 
   if (!client.connected())
   {
@@ -807,9 +610,6 @@ void loop()
   client.loop();
 
 
-  // ----------------------------------------------------------
-  // READ DHT11
-  // ----------------------------------------------------------
 
   float temperature =
     dht.readTemperature();
@@ -818,25 +618,15 @@ void loop()
     dht.readHumidity();
 
 
-  // ----------------------------------------------------------
-  // READ MQ-135
-  // ----------------------------------------------------------
 
   int gasLevel =
     analogRead(GAS_PIN);
 
 
-  // ----------------------------------------------------------
-  // READ HC-SR04
-  // ----------------------------------------------------------
-
   float distance =
     readDistance();
 
 
-  // ----------------------------------------------------------
-  // READ TOUCH
-  // ----------------------------------------------------------
 
   bool touched =
     (
@@ -846,9 +636,6 @@ void loop()
     );
 
 
-  // ----------------------------------------------------------
-  // DHT ERROR
-  // ----------------------------------------------------------
 
   if (
     isnan(temperature) ||
@@ -865,9 +652,6 @@ void loop()
   }
 
 
-  // ----------------------------------------------------------
-  // SAFETY CONDITIONS
-  // ----------------------------------------------------------
 
   bool temperatureDanger =
     temperature > TEMP_THRESHOLD;
@@ -885,9 +669,6 @@ void loop()
     );
 
 
-  // ----------------------------------------------------------
-  // OVERALL DANGER
-  // ----------------------------------------------------------
 
   dangerDetected =
     temperatureDanger ||
@@ -895,10 +676,6 @@ void loop()
     gasDanger ||
     distanceDanger;
 
-
-  // ----------------------------------------------------------
-  // TOUCH / BUZZER SILENCING
-  // ----------------------------------------------------------
 
   if (
     dangerDetected &&
@@ -919,10 +696,6 @@ void loop()
   }
 
 
-  // ----------------------------------------------------------
-  // OUTPUT CONTROL
-  // ----------------------------------------------------------
-
   if (dangerDetected)
   {
     dangerState();
@@ -933,9 +706,6 @@ void loop()
   }
 
 
-  // ----------------------------------------------------------
-  // STATUS
-  // ----------------------------------------------------------
 
   String status;
 
@@ -948,10 +718,6 @@ void loop()
     status = "NORMAL";
   }
 
-
-  // ----------------------------------------------------------
-  // JSON TELEMETRY
-  // ----------------------------------------------------------
 
   String json = "{";
 
@@ -986,9 +752,6 @@ void loop()
   json += "}";
 
 
-  // ----------------------------------------------------------
-  // AES-128-CBC ENCRYPTION
-  // ----------------------------------------------------------
 
   String encrypted =
     encryptPacket(json);
@@ -1008,9 +771,6 @@ void loop()
   }
 
 
-  // ----------------------------------------------------------
-  // SERIAL MONITOR
-  // ----------------------------------------------------------
 
   Serial.println();
 
