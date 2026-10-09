@@ -19,10 +19,9 @@ A separate **Preliminary Edge-AI Security Detection Module** is documented at a 
 - Acquire environmental and proximity telemetry on a resource-constrained embedded node.
 - Evaluate safety conditions locally rather than depending on the dashboard for the primary decision.
 - Protect application telemetry using AES-128-CBC with per-message IVs.
-- Transport encrypted telemetry through MQTT/Mosquitto.
-- Reconstruct and persist telemetry for historical analysis.
+- Transport encrypted cipher through MQTT/Mosquitto.
 - Provide an engineering-oriented real-time monitoring interface.
-- Maintain a clean public release without credentials, reusable keys, or sensitive runtime databases.
+
 
 ## Key Features
 
