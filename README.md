@@ -189,8 +189,6 @@ Cᵢ = Eₖ(Pᵢ ⊕ Cᵢ₋₁)
 Pᵢ = Dₖ(Cᵢ) ⊕ Cᵢ₋₁
 ```
 
-![AES CBC Flow](documentation/architecture/aes_cbc_flow.svg)
-
 **Security note:** AES-CBC provides confidentiality in this design; it does not by itself provide authenticated integrity. The public documentation therefore does not describe CBC as authenticated encryption.
 
 ## MQTT Communication
