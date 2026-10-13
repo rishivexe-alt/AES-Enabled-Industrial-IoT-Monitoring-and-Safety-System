@@ -379,4 +379,4 @@ Before public deployment:
 
 **Rishi P.**  
 Electronics & Communication Engineering  
-Focus: Embedded Systems · IoT · Firmware · Edge Security
+Focus: Embedded Systems · IoT · Firmware · Edge AI
